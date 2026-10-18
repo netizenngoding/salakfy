@@ -266,6 +266,9 @@ import moe.rukamori.archivetune.ui.component.COLLAPSED_ANCHOR
 import moe.rukamori.archivetune.ui.component.DISMISSED_ANCHOR
 import moe.rukamori.archivetune.ui.component.EXPANDED_ANCHOR
 import moe.rukamori.archivetune.ui.component.FloatingNavigationToolbar
+import moe.rukamori.archivetune.ui.theme.LocalGlassBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import moe.rukamori.archivetune.ui.component.IconButton
 import moe.rukamori.archivetune.ui.component.LocalBottomSheetPageState
 import moe.rukamori.archivetune.ui.component.LocalMenuState
@@ -482,10 +485,10 @@ class MainActivity : ComponentActivity() {
 
     private fun hasRestorablePlayback(connection: PlayerConnection): Boolean =
         (
-            connection.player.currentMediaItem != null ||
-                connection.player.mediaItemCount > 0 ||
-                connection.mediaMetadata.value != null
-        )
+                connection.player.currentMediaItem != null ||
+                        connection.player.mediaItemCount > 0 ||
+                        connection.mediaMetadata.value != null
+                )
 
     private suspend fun awaitRestorablePlayback(connection: PlayerConnection): Boolean {
         repeat(15) {
@@ -631,9 +634,9 @@ class MainActivity : ComponentActivity() {
             val updateChannel by rememberEnumPreference(UpdateChannelKey, defaultValue = defaultUpdateChannel)
             val updateSettingsFlow = remember(observeUpdateSettings) { observeUpdateSettings() }
             val updateSettings by
-                updateSettingsFlow.collectAsStateWithLifecycle(
-                    initialValue = null,
-                )
+            updateSettingsFlow.collectAsStateWithLifecycle(
+                initialValue = null,
+            )
 
             LaunchedEffect(Unit) {
                 while (playerConnection == null) {
@@ -978,9 +981,9 @@ class MainActivity : ComponentActivity() {
                     val isTvDevice = remember { applicationContext.isTvDevice() }
                     val useRail =
                         isTvDevice ||
-                            currentWindowAdaptiveInfo()
-                                .windowSizeClass
-                                .isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
+                                currentWindowAdaptiveInfo()
+                                    .windowSizeClass
+                                    .isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
 
                     DisposableEffect(navController) {
                         this@MainActivity.navController = navController
@@ -1089,20 +1092,20 @@ class MainActivity : ComponentActivity() {
                     val shouldShowSearchBar =
                         remember(active, navBackStackEntry) {
                             active ||
-                                navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } ||
-                                navBackStackEntry?.destination?.route?.startsWith(OnlineSearchResultRoutePrefix) == true
+                                    navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } ||
+                                    navBackStackEntry?.destination?.route?.startsWith(OnlineSearchResultRoutePrefix) == true
                         }
 
                     val shouldShowNavigationBar =
                         remember(navBackStackEntry, active) {
                             navBackStackEntry?.destination?.route == null ||
-                                navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } &&
-                                !active
+                                    navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } &&
+                                    !active
                         }
 
                     val shouldShowHomeShuffleButton =
                         currentRoute == Screens.Home.route &&
-                            (allLocalItems.isNotEmpty() || allYtItems.isNotEmpty())
+                                (allLocalItems.isNotEmpty() || allYtItems.isNotEmpty())
 
                     fun getBottomNavPadding(): Dp =
                         if (shouldShowNavigationBar && !useRail) {
@@ -1126,17 +1129,17 @@ class MainActivity : ComponentActivity() {
                             dismissedBound = 0.dp,
                             collapsedBound =
                                 bottomInset +
-                                    (if (shouldShowNavigationBar && !useRail) floatingBarsBottomPadding else 0.dp) +
-                                    getBottomNavPadding() +
-                                    MiniPlayerBottomSpacing +
-                                    MiniPlayerHeight,
+                                        (if (shouldShowNavigationBar && !useRail) floatingBarsBottomPadding else 0.dp) +
+                                        getBottomNavPadding() +
+                                        MiniPlayerBottomSpacing +
+                                        MiniPlayerHeight,
                             expandedBound = maxHeight,
                         )
                     var homeOverflowMenuExpanded by rememberSaveable { mutableStateOf(false) }
                     val showHomeOverflowFab =
                         shouldShowHomeShuffleButton &&
-                            !useRail &&
-                            (playerBottomSheetState.isDismissed || playerBottomSheetState.isCollapsed)
+                                !useRail &&
+                                (playerBottomSheetState.isDismissed || playerBottomSheetState.isCollapsed)
 
                     LaunchedEffect(showHomeOverflowFab) {
                         if (!showHomeOverflowFab) {
@@ -1180,9 +1183,9 @@ class MainActivity : ComponentActivity() {
                             @Suppress("DEPRECATION")
                             window.addFlags(
                                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-                                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                                WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON or
-                                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                                        WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON or
+                                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
                             )
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
                                 setShowWhenLocked(true)
@@ -1195,9 +1198,9 @@ class MainActivity : ComponentActivity() {
                             @Suppress("DEPRECATION")
                             window.clearFlags(
                                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-                                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                                WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON or
-                                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                                        WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON or
+                                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
                             )
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
                                 setShowWhenLocked(false)
@@ -1243,8 +1246,8 @@ class MainActivity : ComponentActivity() {
 
                     val shouldHideStatusBars =
                         isYearInMusicScreen ||
-                            (playerBottomSheetState.isExpandedOrExpanding &&
-                                playerDesignStyle == PlayerDesignStyle.V7)
+                                (playerBottomSheetState.isExpandedOrExpanding &&
+                                        playerDesignStyle == PlayerDesignStyle.V7)
 
                     LaunchedEffect(shouldHideStatusBars, aodModeEnabled) {
                         if (aodModeEnabled) return@LaunchedEffect
@@ -1303,12 +1306,12 @@ class MainActivity : ComponentActivity() {
                             windowsInsets
                                 .only(
                                     (
-                                        if (useRail) {
-                                            WindowInsetsSides.Right
-                                        } else {
-                                            WindowInsetsSides.Horizontal
-                                        }
-                                    ) + WindowInsetsSides.Top,
+                                            if (useRail) {
+                                                WindowInsetsSides.Right
+                                            } else {
+                                                WindowInsetsSides.Horizontal
+                                            }
+                                            ) + WindowInsetsSides.Top,
                                 ).add(WindowInsets(top = AppBarHeight, bottom = bottom))
                         }
 
@@ -1316,31 +1319,31 @@ class MainActivity : ComponentActivity() {
                         appBarScrollBehavior(
                             canScroll = {
                                 navBackStackEntry?.destination?.route?.startsWith(OnlineSearchResultRoutePrefix) == false &&
-                                    navBackStackEntry?.destination?.route != Screens.Library.route &&
-                                    !playerBottomSheetState.isExpandedOrExpanding
+                                        navBackStackEntry?.destination?.route != Screens.Library.route &&
+                                        !playerBottomSheetState.isExpandedOrExpanding
                             },
                         )
                     val searchScrollBehavior =
                         appBarScrollBehavior(
                             canScroll = {
                                 navBackStackEntry?.destination?.route?.startsWith(OnlineSearchResultRoutePrefix) == false &&
-                                    navBackStackEntry?.destination?.route != Screens.Library.route &&
-                                    !playerBottomSheetState.isExpandedOrExpanding
+                                        navBackStackEntry?.destination?.route != Screens.Library.route &&
+                                        !playerBottomSheetState.isExpandedOrExpanding
                             },
                         )
                     val libraryScrollBehavior =
                         appBarScrollBehavior(
                             canScroll = {
                                 navBackStackEntry?.destination?.route == Screens.Library.route &&
-                                    !playerBottomSheetState.isExpandedOrExpanding
+                                        !playerBottomSheetState.isExpandedOrExpanding
                             },
                         )
                     val topAppBarScrollBehavior =
                         appBarScrollBehavior(
                             canScroll = {
                                 navBackStackEntry?.destination?.route?.startsWith(OnlineSearchResultRoutePrefix) == false &&
-                                    navBackStackEntry?.destination?.route != Screens.Library.route &&
-                                    !playerBottomSheetState.isExpandedOrExpanding
+                                        navBackStackEntry?.destination?.route != Screens.Library.route &&
+                                        !playerBottomSheetState.isExpandedOrExpanding
                             },
                         )
 
@@ -1403,8 +1406,8 @@ class MainActivity : ComponentActivity() {
 
                         val isEnteringSubScreen =
                             currentRoute != null &&
-                                currentRoute !in topLevelScreens &&
-                                currentRoute.startsWith(OnlineSearchResultRoutePrefix) != true
+                                    currentRoute !in topLevelScreens &&
+                                    currentRoute.startsWith(OnlineSearchResultRoutePrefix) != true
                         if (isEnteringSubScreen) {
                             topAppBarScrollBehavior.state.heightOffset = 0f
                             topAppBarScrollBehavior.state.contentOffset = 0f
@@ -1413,10 +1416,10 @@ class MainActivity : ComponentActivity() {
                         previousRoute = currentRoute
 
                         if ((
-                                currentRoute?.startsWith("artist/") == true ||
-                                    currentRoute?.startsWith("album/") == true ||
-                                    currentRoute?.startsWith("local_playlist/") == true
-                            ) &&
+                                    currentRoute?.startsWith("artist/") == true ||
+                                            currentRoute?.startsWith("album/") == true ||
+                                            currentRoute?.startsWith("local_playlist/") == true
+                                    ) &&
                             playerBottomSheetState.isExpandedOrExpanding
                         ) {
                             playerBottomSheetState.collapseSoft()
@@ -1558,7 +1561,7 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(navBackStackEntry) {
                         shouldShowTopBar =
                             !active && navBackStackEntry?.destination?.route in topLevelScreens &&
-                            navBackStackEntry?.destination?.route != "settings"
+                                    navBackStackEntry?.destination?.route != "settings"
                     }
 
                     var sharedSong: SongItem? by remember {
@@ -1666,7 +1669,9 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
+                    val glassBackdrop = rememberLayerBackdrop()
                     CompositionLocalProvider(
+                        LocalGlassBackdrop provides glassBackdrop,
                         LocalHapticFeedback provides customHaptic,
                         LocalAnimationsDisabled provides disableAnimations,
                         LocalDatabase provides database,
@@ -1683,8 +1688,8 @@ class MainActivity : ComponentActivity() {
                             AnimatedVisibility(
                                 visible =
                                     useRail &&
-                                        shouldShowNavigationBar &&
-                                        (isTvDevice || !playerBottomSheetState.isExpandedOrExpanding),
+                                            shouldShowNavigationBar &&
+                                            (isTvDevice || !playerBottomSheetState.isExpandedOrExpanding),
                                 enter = fadeIn(animationSpec = tween(durationMillis = if (disableAnimations) 0 else 150)),
                                 exit = fadeOut(animationSpec = tween(durationMillis = if (disableAnimations) 0 else 100)),
                             ) {
@@ -1770,8 +1775,8 @@ class MainActivity : ComponentActivity() {
                                         val shouldUseFloatingTopBar =
                                             remember(navBackStackEntry) {
                                                 navBackStackEntry?.destination?.route == Screens.Home.route ||
-                                                    navBackStackEntry?.destination?.route == Screens.Search.route ||
-                                                    navBackStackEntry?.destination?.route == Screens.Library.route
+                                                        navBackStackEntry?.destination?.route == Screens.Search.route ||
+                                                        navBackStackEntry?.destination?.route == Screens.Library.route
                                             }
                                         val shouldShowBlurBackground =
                                             remember(navBackStackEntry) {
@@ -1849,9 +1854,9 @@ class MainActivity : ComponentActivity() {
                                                             }.fillMaxWidth()
                                                             .height(
                                                                 AppBarHeight +
-                                                                    with(LocalDensity.current) {
-                                                                        WindowInsets.systemBars.getTop(LocalDensity.current).toDp()
-                                                                    },
+                                                                        with(LocalDensity.current) {
+                                                                            WindowInsets.systemBars.getTop(LocalDensity.current).toDp()
+                                                                        },
                                                             ).background(
                                                                 Brush.verticalGradient(
                                                                     colors =
@@ -1870,12 +1875,12 @@ class MainActivity : ComponentActivity() {
                                                 windowInsets =
                                                     WindowInsets.safeDrawing.only(
                                                         (
-                                                            if (useRail) {
-                                                                WindowInsetsSides.Right
-                                                            } else {
-                                                                WindowInsetsSides.Horizontal
-                                                            }
-                                                        ) + WindowInsetsSides.Top,
+                                                                if (useRail) {
+                                                                    WindowInsetsSides.Right
+                                                                } else {
+                                                                    WindowInsetsSides.Horizontal
+                                                                }
+                                                                ) + WindowInsetsSides.Top,
                                                     ),
                                                 title = {
                                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2026,7 +2031,7 @@ class MainActivity : ComponentActivity() {
                                     AnimatedVisibility(
                                         visible =
                                             active ||
-                                                navBackStackEntry?.destination?.route?.startsWith(OnlineSearchResultRoutePrefix) == true,
+                                                    navBackStackEntry?.destination?.route?.startsWith(OnlineSearchResultRoutePrefix) == true,
                                         enter = fadeIn(animationSpec = tween(durationMillis = if (disableAnimations) 0 else 300)),
                                         exit = fadeOut(animationSpec = tween(durationMillis = if (disableAnimations) 0 else 200)),
                                     ) {
@@ -2226,7 +2231,7 @@ class MainActivity : ComponentActivity() {
                                                         (bottomNavigationBarHeightState.value / navVisibleHeight).coerceIn(0f, 1f)
                                                     val isNavTransitioning =
                                                         bottomNavigationBarHeightState.value > 0.dp &&
-                                                            bottomNavigationBarHeightState.value < navVisibleHeight
+                                                                bottomNavigationBarHeightState.value < navVisibleHeight
                                                     val morphThreshold = MiniPlayerHeight + MiniPlayerBottomSpacing
                                                     val swipeDeviation =
                                                         if (isNavTransitioning && playerBottomSheetState.targetAnchor == COLLAPSED_ANCHOR) {
@@ -2271,17 +2276,17 @@ class MainActivity : ComponentActivity() {
                                                         } else {
                                                             val slideOffset =
                                                                 navSlideDistance *
-                                                                    playerBottomSheetState.progress.coerceIn(
-                                                                        0f,
-                                                                        1f,
-                                                                    )
+                                                                        playerBottomSheetState.progress.coerceIn(
+                                                                            0f,
+                                                                            1f,
+                                                                        )
                                                             val hideOffset =
                                                                 navSlideDistance *
-                                                                    (
-                                                                        1 -
-                                                                            bottomNavigationBarHeight.coerceAtMost(navVisibleHeight) /
-                                                                            navVisibleHeight
-                                                                    )
+                                                                        (
+                                                                                1 -
+                                                                                        bottomNavigationBarHeight.coerceAtMost(navVisibleHeight) /
+                                                                                        navVisibleHeight
+                                                                                )
                                                             IntOffset(
                                                                 x = 0,
                                                                 y = (slideOffset + hideOffset).roundToPx(),
@@ -2303,7 +2308,7 @@ class MainActivity : ComponentActivity() {
                                                         ).height(navVisibleHeight),
                                                 isSelected = { screen ->
                                                     navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } ==
-                                                        true
+                                                            true
                                                 },
                                                 onItemClick = { screen, isSelected ->
                                                     val wasPlayerActive = playerBottomSheetState.isExpandedOrExpanding
@@ -2325,14 +2330,14 @@ class MainActivity : ComponentActivity() {
 
                                         val homeOverflowFabBottomPadding =
                                             bottomInset +
-                                                floatingBarsBottomPadding +
-                                                navVisibleHeight +
-                                                HomeOverflowFabSpacing +
-                                                if (playerBottomSheetState.isCollapsed) {
-                                                    MiniPlayerHeight + MiniPlayerBottomSpacing
-                                                } else {
-                                                    0.dp
-                                                }
+                                                    floatingBarsBottomPadding +
+                                                    navVisibleHeight +
+                                                    HomeOverflowFabSpacing +
+                                                    if (playerBottomSheetState.isCollapsed) {
+                                                        MiniPlayerHeight + MiniPlayerBottomSpacing
+                                                    } else {
+                                                        0.dp
+                                                    }
                                         HomeOverflowFabVisibility(
                                             visible = showHomeOverflowFab,
                                             modifier =
@@ -2514,9 +2519,9 @@ class MainActivity : ComponentActivity() {
                                         if (disableAnimations) {
                                             fadeIn(tween(0))
                                         } else if ((
-                                                initialState.destination.route in topLevelScreens ||
-                                                    initialState.destination.route?.startsWith(OnlineSearchResultRoutePrefix) == true
-                                            ) &&
+                                                    initialState.destination.route in topLevelScreens ||
+                                                            initialState.destination.route?.startsWith(OnlineSearchResultRoutePrefix) == true
+                                                    ) &&
                                             targetState.destination.route in topLevelScreens
                                         ) {
                                             fadeIn(tween(250))
@@ -2528,9 +2533,9 @@ class MainActivity : ComponentActivity() {
                                         if (disableAnimations) {
                                             fadeOut(tween(0))
                                         } else if ((
-                                                initialState.destination.route in topLevelScreens ||
-                                                    initialState.destination.route?.startsWith(OnlineSearchResultRoutePrefix) == true
-                                            ) &&
+                                                    initialState.destination.route in topLevelScreens ||
+                                                            initialState.destination.route?.startsWith(OnlineSearchResultRoutePrefix) == true
+                                                    ) &&
                                             targetState.destination.route in topLevelScreens
                                         ) {
                                             fadeOut(tween(200))
@@ -2551,7 +2556,7 @@ class MainActivity : ComponentActivity() {
                                                 },
                                             ).nestedScroll(
                                                 topAppBarScrollBehavior.nestedScrollConnection,
-                                            ),
+                                            ).layerBackdrop(glassBackdrop),
                                 ) {
                                     navigationBuilder(
                                         navController,
@@ -2689,10 +2694,10 @@ class MainActivity : ComponentActivity() {
         if (intent.action == "android.media.action.MEDIA_PLAY_FROM_SEARCH") {
             val query =
                 (
-                    intent.getStringExtra("query")
-                        ?: intent.getStringExtra("android.intent.extra.TITLE")
-                        ?: ""
-                ).trim()
+                        intent.getStringExtra("query")
+                            ?: intent.getStringExtra("android.intent.extra.TITLE")
+                            ?: ""
+                        ).trim()
             if (query.isNotBlank()) {
                 pendingVoiceSearchQuery = query
                 startMusicServiceSafely()
@@ -3104,16 +3109,16 @@ private fun HomeOverflowFabVisibility(
         modifier = modifier,
         enter =
             fadeIn(animationSpec = motionScheme.fastEffectsSpec()) +
-                scaleIn(
-                    initialScale = 0.8f,
-                    animationSpec = motionScheme.defaultSpatialSpec(),
-                ),
+                    scaleIn(
+                        initialScale = 0.8f,
+                        animationSpec = motionScheme.defaultSpatialSpec(),
+                    ),
         exit =
             fadeOut(animationSpec = motionScheme.fastEffectsSpec()) +
-                scaleOut(
-                    targetScale = 0.8f,
-                    animationSpec = motionScheme.fastSpatialSpec(),
-                ),
+                    scaleOut(
+                        targetScale = 0.8f,
+                        animationSpec = motionScheme.fastSpatialSpec(),
+                    ),
         label = "homeOverflowFabVisibility",
     ) {
         content()
@@ -3318,8 +3323,8 @@ private fun OnlineSearchSortMenu(
 private fun Context.isTvDevice(): Boolean {
     val isTelevisionUiMode =
         (resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK) ==
-            Configuration.UI_MODE_TYPE_TELEVISION
+                Configuration.UI_MODE_TYPE_TELEVISION
     return isTelevisionUiMode ||
-        packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK) ||
-        packageManager.hasSystemFeature(PackageManager.FEATURE_TELEVISION)
+            packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK) ||
+            packageManager.hasSystemFeature(PackageManager.FEATURE_TELEVISION)
 }

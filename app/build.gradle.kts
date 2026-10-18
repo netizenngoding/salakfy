@@ -40,10 +40,10 @@ val apiBearerToken = System.getenv("API_BEARER_TOKEN")?.trim()
 
 val discordApplicationId =
     (
-        localProperties.getProperty("DISCORD_APPLICATION_ID")
-            ?: System.getenv("DISCORD_APPLICATION_ID")
-            ?: "1165706613961789445"
-        ).trim()
+            localProperties.getProperty("DISCORD_APPLICATION_ID")
+                ?: System.getenv("DISCORD_APPLICATION_ID")
+                ?: "1165706613961789445"
+            ).trim()
 val discordApplicationIdLong = discordApplicationId.toLongOrNull() ?: 1165706613961789445L
 val discordRedirectScheme = "discord-$discordApplicationId"
 val releaseKeystoreFile = file("keystore/release.keystore")
@@ -57,9 +57,9 @@ val releaseKeyPassword = System.getenv("KEY_PASSWORD")?.takeIf { it.isNotBlank()
     ?: localProperties.getProperty("KEY_PASSWORD")?.takeIf { it.isNotBlank() }
 val hasReleaseSigningConfig =
     releaseKeystoreFile.isFile &&
-        releaseStorePassword != null &&
-        releaseKeyAlias != null &&
-        releaseKeyPassword != null
+            releaseStorePassword != null &&
+            releaseKeyAlias != null &&
+            releaseKeyPassword != null
 android {
     namespace = "moe.rukamori.archivetune"
     compileSdk = 37
@@ -67,7 +67,7 @@ android {
     compileSdkMinor = 2
 
     defaultConfig {
-    applicationId = "com.dev.salakfy"
+        applicationId = "com.dev.salakfy"
         minSdk = 26
         targetSdk = 37
         versionCode = 142
@@ -100,10 +100,10 @@ android {
 
         val nightlyBuildHash =
             (
-                localProperties.getProperty("NIGHTLY_BUILD_HASH")
-                    ?: System.getenv("NIGHTLY_BUILD_HASH")
-                    ?: ""
-                ).trim()
+                    localProperties.getProperty("NIGHTLY_BUILD_HASH")
+                        ?: System.getenv("NIGHTLY_BUILD_HASH")
+                        ?: ""
+                    ).trim()
         buildConfigField("String", "NIGHTLY_BUILD_HASH", "\"$nightlyBuildHash\"")
 
         val nightlyVersionName =
@@ -332,7 +332,6 @@ dependencies {
     compileOnly("androidx.compose.ui:ui-tooling-preview:${libs.versions.compose.get()}")
     debugImplementation("androidx.compose.ui:ui-tooling-preview:${libs.versions.compose.get()}")
     debugImplementation(libs.compose.ui.tooling)
-    debugImplementation(libs.leakcanary.android)
     add("nightlyImplementation", libs.leakcanary.android)
     implementation(libs.compose.animation)
     implementation(libs.compose.material.icons.extended)
@@ -345,6 +344,8 @@ dependencies {
     implementation(libs.material3)
     implementation(libs.haze)
     implementation(libs.haze.blur)
+    implementation(libs.backdrop)
+    implementation(libs.kyant.shapes)
     implementation(libs.androidx.graphics.shapes)
     implementation(libs.palette)
     implementation(libs.androidsvg)

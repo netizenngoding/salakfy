@@ -53,7 +53,11 @@ import moe.rukamori.archivetune.constants.FloatingBarStandaloneCornerRadius
 import moe.rukamori.archivetune.constants.MiniPlayerHeight
 import moe.rukamori.archivetune.constants.NavigationBarMaxWidth
 import moe.rukamori.archivetune.constants.SwipeSensitivityKey
+import com.kyant.shapes.Capsule
+import moe.rukamori.archivetune.ui.theme.LocalGlassBackdrop
 import moe.rukamori.archivetune.ui.theme.PlayerColorExtractor
+import moe.rukamori.archivetune.ui.theme.liquidGlass
+import moe.rukamori.archivetune.ui.theme.rememberGlassColors
 import moe.rukamori.archivetune.utils.rememberEnumPreference
 import moe.rukamori.archivetune.utils.rememberPreference
 import kotlin.math.roundToInt
@@ -206,15 +210,24 @@ private fun NewMiniPlayer(
         pureBlack = pureBlack,
         useLegacyBackground = false,
     ) { offsetX ->
+        val glassBackdrop = LocalGlassBackdrop.current
+        val glassColors = rememberGlassColors(pureBlack)
+        val useGlass = effectiveBackgroundStyle == MiniPlayerBackgroundStyle.THEME
         Box(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .height(MiniPlayerHeight)
                     .offset { IntOffset(offsetX.roundToInt(), 0) }
-                    .clip(miniPlayerShape),
+                    .then(
+                        if (useGlass) {
+                            Modifier.liquidGlass(backdrop = glassBackdrop, shape = { Capsule() }, colors = glassColors)
+                        } else {
+                            Modifier
+                        },
+                    ).clip(if (useGlass) Capsule() else miniPlayerShape),
         ) {
-            MiniPlayerBackground(
+            if (!useGlass) MiniPlayerBackground(
                 style = effectiveBackgroundStyle,
                 palette = backgroundPalette,
                 modifier = Modifier.fillMaxSize(),
@@ -269,9 +282,9 @@ private fun rememberMiniPlayerContentColors(useArtworkBackground: Boolean): Mini
                 progressTrack = colorScheme.outline.copy(alpha = 0.18f),
                 artworkContainer = colorScheme.surfaceVariant,
                 artworkBorder = colorScheme.outline.copy(alpha = 0.2f),
-                primaryButtonContainer = colorScheme.primary,
-                primaryButtonIcon = colorScheme.onPrimary,
-                secondaryButtonContainer = colorScheme.surfaceContainerHighest,
+                primaryButtonContainer = Color.Transparent,
+                primaryButtonIcon = colorScheme.onSurface,
+                secondaryButtonContainer = Color.Transparent,
                 buttonIcon = colorScheme.onSurface,
                 disabledButtonIcon = colorScheme.onSurface.copy(alpha = 0.38f),
                 togetherContainer = colorScheme.primaryContainer,

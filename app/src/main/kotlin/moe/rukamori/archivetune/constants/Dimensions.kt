@@ -22,12 +22,12 @@ const val CONTENT_TYPE_PLAYLIST = 5
 val NavigationBarHorizontalPadding = 12.dp
 val NavigationBarBottomPadding = 10.dp
 val NavigationBarMaxWidth = 420.dp
-val NavigationBarHeight = 78.dp
-val MiniPlayerHeight = 70.dp
-val MiniPlayerBottomSpacing = 4.dp
+val NavigationBarHeight = 64.dp
+val MiniPlayerHeight = 64.dp
+val MiniPlayerBottomSpacing = 8.dp
 val FloatingBarStandaloneCornerRadius = 32.dp
-val FloatingBarOuterCornerRadius = 28.dp
-val FloatingBarJunctionCornerRadius = 12.dp
+val FloatingBarOuterCornerRadius = 32.dp
+val FloatingBarJunctionCornerRadius = 32.dp
 val QueuePeekHeight = 64.dp
 val AppBarHeight = 64.dp
 

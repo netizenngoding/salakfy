@@ -11,19 +11,22 @@ import android.app.WallpaperManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
-import android.os.Build
 import android.util.Base64
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.LocalRippleConfiguration
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Shapes
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.produceState
@@ -32,12 +35,14 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.SaverScope
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.palette.graphics.Palette
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamicColorScheme
 import com.materialkolor.ktx.toHct
@@ -52,6 +57,10 @@ import kotlin.math.abs
 import kotlin.math.min
 
 val DefaultThemeColor = Color(0xFFED5564)
+
+/** Apple Music system pink/red accent. */
+val AppleMusicAccent = Color(0xFFFA2D48)
+val AppleMusicAccentDark = Color(0xFFFF375F)
 val LocalArchiveTuneFontPreference = staticCompositionLocalOf { AppFontPreference.DEFAULT }
 val LocalArchiveTuneFontFamily = staticCompositionLocalOf { AppFontFamily }
 
@@ -84,8 +93,6 @@ fun ArchiveTuneTheme(
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
-    val useSystemDynamicColor =
-        (seedPalette == null && themeColor == DefaultThemeColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
 
     val customFontFamily =
         produceState<FontFamily?>(
@@ -119,39 +126,22 @@ fun ArchiveTuneTheme(
         }
     val motionScheme =
         remember(disableAnimations) {
-            if (disableAnimations) DisabledMotionScheme else MotionScheme.expressive()
+            if (disableAnimations) DisabledMotionScheme else IosMotionScheme
         }
-    val paletteStyle =
-        remember(themeColor, seedPalette) {
-            paletteStyleFor(seedPalette?.primary ?: themeColor)
+    // Apple Music look: neutral iOS system surfaces + a single accent colour.
+    // Default theme colour -> Apple Music red; a custom/dynamic colour only changes the accent.
+    val accentColor =
+        when {
+            seedPalette != null -> seedPalette.primary
+            themeColor != DefaultThemeColor -> themeColor
+            darkTheme -> AppleMusicAccentDark
+            else -> AppleMusicAccent
         }
-
-    val appColorScheme =
-        remember(seedPalette, themeColor, darkTheme) {
-            if (seedPalette != null) {
-                exactPaletteColorScheme(
-                    palette = seedPalette,
-                    isDark = darkTheme,
-                )
-            } else {
-                materialKolorDynamicColorScheme(
-                    keyColor = themeColor,
-                    isDark = darkTheme,
-                    style = paletteStyle,
-                )
-            }
-        }
-
-    val baseColorScheme =
-        if (useSystemDynamicColor) {
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        } else {
-            appColorScheme
-        }
-
     val colorScheme =
-        remember(baseColorScheme, pureBlack, darkTheme) {
-            if (darkTheme && pureBlack) baseColorScheme.pureBlack(true) else baseColorScheme
+        remember(accentColor, pureBlack, darkTheme) {
+            iosColorScheme(accent = accentColor, isDark = darkTheme).let {
+                if (darkTheme && pureBlack) it.pureBlack(true) else it
+            }
         }
 
     val animatedColorScheme =
@@ -164,24 +154,22 @@ fun ArchiveTuneTheme(
             )
         }
 
-    val expressiveShapes =
+    // iOS-like corner radii (smaller & tighter than Material Expressive).
+    val iosShapes =
         remember {
             Shapes(
-                extraSmall =
-                    androidx.compose.foundation.shape
-                        .RoundedCornerShape(8.dp),
-                small =
-                    androidx.compose.foundation.shape
-                        .RoundedCornerShape(12.dp),
-                medium =
-                    androidx.compose.foundation.shape
-                        .RoundedCornerShape(16.dp),
-                large =
-                    androidx.compose.foundation.shape
-                        .RoundedCornerShape(24.dp),
-                extraLarge =
-                    androidx.compose.foundation.shape
-                        .RoundedCornerShape(32.dp),
+                extraSmall = RoundedCornerShape(6.dp),
+                small = RoundedCornerShape(10.dp),
+                medium = RoundedCornerShape(14.dp),
+                large = RoundedCornerShape(20.dp),
+                extraLarge = RoundedCornerShape(28.dp),
+            )
+        }
+
+    val pressHighlight =
+        remember(darkTheme) {
+            IosHighlightIndication(
+                if (darkTheme) Color.White.copy(alpha = 0.10f) else Color.Black.copy(alpha = 0.08f),
             )
         }
 
@@ -189,13 +177,19 @@ fun ArchiveTuneTheme(
         LocalArchiveTuneFontPreference provides fontPreference,
         LocalArchiveTuneFontFamily provides resolvedFontFamily,
     ) {
-        MaterialExpressiveTheme(
+        MaterialTheme(
             colorScheme = animatedColorScheme,
             motionScheme = motionScheme,
             typography = typography,
-            shapes = expressiveShapes,
-            content = content,
-        )
+            shapes = iosShapes,
+        ) {
+            CompositionLocalProvider(
+                // No Material ripples – iOS-style soft highlight on press instead.
+                LocalIndication provides pressHighlight,
+                LocalRippleConfiguration provides null,
+                content = content,
+            )
+        }
     }
 }
 
@@ -272,6 +266,114 @@ private fun animateColorScheme(
                 label = "surfaceContainerHighest",
             ).value,
     )
+
+/**
+ * iOS / UIKit-like springs: critically damped, quick spatial motion and soft fades.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private object IosMotionScheme : MotionScheme {
+    override fun <T> defaultSpatialSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.86f, stiffness = 420f)
+
+    override fun <T> fastSpatialSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.9f, stiffness = 800f)
+
+    override fun <T> slowSpatialSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.86f, stiffness = 220f)
+
+    override fun <T> defaultEffectsSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = 600f)
+
+    override fun <T> fastEffectsSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = 1400f)
+
+    override fun <T> slowEffectsSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = 260f)
+}
+
+/**
+ * iOS system colours (UIColor.systemBackground, secondarySystemBackground, label, separator ...)
+ * mapped onto Material ColorScheme slots so every existing screen picks them up automatically.
+ */
+private fun iosColorScheme(
+    accent: Color,
+    isDark: Boolean,
+): ColorScheme {
+    val onAccent = if (accent.luminance() > 0.6f) Color.Black else Color.White
+    return if (isDark) {
+        darkColorScheme(
+            primary = accent,
+            onPrimary = onAccent,
+            primaryContainer = accent.copy(alpha = 0.22f).compositeOver(Color(0xFF1C1C1E)),
+            onPrimaryContainer = accent,
+            inversePrimary = accent,
+            secondary = accent,
+            onSecondary = onAccent,
+            secondaryContainer = Color(0xFF2C2C2E),
+            onSecondaryContainer = Color.White,
+            tertiary = accent,
+            onTertiary = onAccent,
+            tertiaryContainer = Color(0xFF2C2C2E),
+            onTertiaryContainer = Color.White,
+            background = Color.Black,
+            onBackground = Color.White,
+            surface = Color.Black,
+            onSurface = Color.White,
+            surfaceVariant = Color(0xFF2C2C2E),
+            onSurfaceVariant = Color(0xFF98989F),
+            surfaceTint = Color.Transparent,
+            inverseSurface = Color(0xFFF2F2F7),
+            inverseOnSurface = Color.Black,
+            error = Color(0xFFFF453A),
+            onError = Color.White,
+            errorContainer = Color(0xFF3A1A18),
+            onErrorContainer = Color(0xFFFF453A),
+            outline = Color(0xFF545458),
+            outlineVariant = Color(0xFF38383A),
+            scrim = Color.Black,
+            surfaceBright = Color(0xFF2C2C2E),
+            surfaceDim = Color.Black,
+            surfaceContainerLowest = Color.Black,
+            surfaceContainerLow = Color(0xFF0E0E0F),
+            surfaceContainer = Color(0xFF1C1C1E),
+            surfaceContainerHigh = Color(0xFF242426),
+            surfaceContainerHighest = Color(0xFF2C2C2E),
+        )
+    } else {
+        lightColorScheme(
+            primary = accent,
+            onPrimary = onAccent,
+            primaryContainer = accent.copy(alpha = 0.12f).compositeOver(Color.White),
+            onPrimaryContainer = accent,
+            inversePrimary = accent,
+            secondary = accent,
+            onSecondary = onAccent,
+            secondaryContainer = Color(0xFFE5E5EA),
+            onSecondaryContainer = Color.Black,
+            tertiary = accent,
+            onTertiary = onAccent,
+            tertiaryContainer = Color(0xFFE5E5EA),
+            onTertiaryContainer = Color.Black,
+            background = Color.White,
+            onBackground = Color.Black,
+            surface = Color.White,
+            onSurface = Color.Black,
+            surfaceVariant = Color(0xFFEFEFF4),
+            onSurfaceVariant = Color(0xFF8A8A8E),
+            surfaceTint = Color.Transparent,
+            inverseSurface = Color(0xFF1C1C1E),
+            inverseOnSurface = Color.White,
+            error = Color(0xFFFF3B30),
+            onError = Color.White,
+            errorContainer = Color(0xFFFFE5E3),
+            onErrorContainer = Color(0xFFD70015),
+            outline = Color(0xFFC6C6C8),
+            outlineVariant = Color(0xFFE5E5EA),
+            scrim = Color.Black,
+            surfaceBright = Color.White,
+            surfaceDim = Color(0xFFF2F2F7),
+            surfaceContainerLowest = Color.White,
+            surfaceContainerLow = Color(0xFFF9F9FB),
+            surfaceContainer = Color(0xFFF2F2F7),
+            surfaceContainerHigh = Color(0xFFEBEBF0),
+            surfaceContainerHighest = Color(0xFFE5E5EA),
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private object DisabledMotionScheme : MotionScheme {

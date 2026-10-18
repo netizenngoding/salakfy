@@ -15,133 +15,49 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import moe.rukamori.archivetune.R
 
+/**
+ * iOS Dynamic Type scale (Large Title 34 / Title1 28 / Title2 22 / Title3 20 /
+ * Headline 17 semibold / Body 17 / Callout 16 / Subhead 15 / Footnote 13 / Caption 12-11)
+ * mapped onto Material slots. Bold titles + slightly negative tracking like SF Pro.
+ */
+private fun ios(
+    fontFamily: FontFamily,
+    size: Int,
+    line: Int,
+    weight: FontWeight,
+    tracking: Double,
+) = TextStyle(
+    fontFamily = fontFamily,
+    fontWeight = weight,
+    fontSize = size.sp,
+    lineHeight = line.sp,
+    letterSpacing = tracking.sp,
+)
+
 private fun buildTypography(fontFamily: FontFamily) =
     Typography(
-        displayLarge =
-            TextStyle(
-                fontFamily = fontFamily,
-                fontWeight = FontWeight.Normal,
-                fontSize = 57.sp,
-                lineHeight = 64.sp,
-                letterSpacing = 0.sp,
-            ),
-        displayMedium =
-            TextStyle(
-                fontFamily = fontFamily,
-                fontWeight = FontWeight.Normal,
-                fontSize = 45.sp,
-                lineHeight = 52.sp,
-                letterSpacing = 0.sp,
-            ),
-        displaySmall =
-            TextStyle(
-                fontFamily = fontFamily,
-                fontWeight = FontWeight.Normal,
-                fontSize = 36.sp,
-                lineHeight = 44.sp,
-                letterSpacing = 0.sp,
-            ),
-        headlineLarge =
-            TextStyle(
-                fontFamily = fontFamily,
-                fontWeight = FontWeight.Normal,
-                fontSize = 32.sp,
-                lineHeight = 40.sp,
-                letterSpacing = 0.sp,
-            ),
-        headlineMedium =
-            TextStyle(
-                fontFamily = fontFamily,
-                fontWeight = FontWeight.Normal,
-                fontSize = 28.sp,
-                lineHeight = 36.sp,
-                letterSpacing = 0.sp,
-            ),
-        headlineSmall =
-            TextStyle(
-                fontFamily = fontFamily,
-                fontWeight = FontWeight.Normal,
-                fontSize = 24.sp,
-                lineHeight = 32.sp,
-                letterSpacing = 0.sp,
-            ),
-        titleLarge =
-            TextStyle(
-                fontFamily = fontFamily,
-                fontWeight = FontWeight.Normal,
-                fontSize = 22.sp,
-                lineHeight = 28.sp,
-                letterSpacing = 0.sp,
-            ),
-        titleMedium =
-            TextStyle(
-                fontFamily = fontFamily,
-                fontWeight = FontWeight.Medium,
-                fontSize = 16.sp,
-                lineHeight = 24.sp,
-                letterSpacing = 0.15.sp,
-            ),
-        titleSmall =
-            TextStyle(
-                fontFamily = fontFamily,
-                fontWeight = FontWeight.Medium,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
-                letterSpacing = 0.1.sp,
-            ),
-        bodyLarge =
-            TextStyle(
-                fontFamily = fontFamily,
-                fontWeight = FontWeight.Normal,
-                fontSize = 16.sp,
-                lineHeight = 24.sp,
-                letterSpacing = 0.5.sp, // M3 uses 0.5, M2 used 0.15
-            ),
-        bodyMedium =
-            TextStyle(
-                fontFamily = fontFamily,
-                fontWeight = FontWeight.Normal,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
-                letterSpacing = 0.25.sp,
-            ),
-        bodySmall =
-            TextStyle(
-                fontFamily = fontFamily,
-                fontWeight = FontWeight.Normal,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                letterSpacing = 0.4.sp,
-            ),
-        labelLarge =
-            TextStyle(
-                fontFamily = fontFamily,
-                fontWeight = FontWeight.Medium,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
-                letterSpacing = 0.1.sp,
-            ),
-        labelMedium =
-            TextStyle(
-                fontFamily = fontFamily,
-                fontWeight = FontWeight.Medium,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                letterSpacing = 0.5.sp,
-            ),
-        labelSmall =
-            TextStyle(
-                fontFamily = fontFamily,
-                fontWeight = FontWeight.Medium,
-                fontSize = 11.sp,
-                lineHeight = 16.sp,
-                letterSpacing = 0.5.sp,
-            ),
+        displayLarge = ios(fontFamily, 54, 60, FontWeight.Bold, -0.8),
+        displayMedium = ios(fontFamily, 44, 50, FontWeight.Bold, -0.6),
+        displaySmall = ios(fontFamily, 34, 41, FontWeight.Bold, -0.4), // Large Title
+        headlineLarge = ios(fontFamily, 32, 39, FontWeight.Bold, -0.4),
+        headlineMedium = ios(fontFamily, 28, 34, FontWeight.Bold, -0.3), // Title 1
+        headlineSmall = ios(fontFamily, 22, 28, FontWeight.Bold, -0.2), // Title 2
+        titleLarge = ios(fontFamily, 20, 25, FontWeight.SemiBold, -0.2), // Title 3
+        titleMedium = ios(fontFamily, 17, 22, FontWeight.SemiBold, -0.3), // Headline
+        titleSmall = ios(fontFamily, 15, 20, FontWeight.SemiBold, -0.2), // Subheadline (bold)
+        bodyLarge = ios(fontFamily, 17, 22, FontWeight.Normal, -0.3), // Body
+        bodyMedium = ios(fontFamily, 15, 20, FontWeight.Normal, -0.2), // Subheadline
+        bodySmall = ios(fontFamily, 13, 18, FontWeight.Normal, -0.1), // Footnote
+        labelLarge = ios(fontFamily, 15, 20, FontWeight.SemiBold, -0.2),
+        labelMedium = ios(fontFamily, 12, 16, FontWeight.Medium, 0.0), // Caption 1
+        labelSmall = ios(fontFamily, 11, 13, FontWeight.Medium, 0.05), // Caption 2
     )
 
-val AppFontFamily = FontFamily(Font(R.font.poppins))
+// Default font: system sans (closest to SF Pro on Android) instead of Poppins.
+val AppFontFamily: FontFamily = FontFamily.SansSerif
 val LyricsFontFamily = FontFamily(Font(R.font.sfprodisplaybold))
 val AppTypography = buildTypography(AppFontFamily)
 val SystemTypography = buildTypography(FontFamily.Default)
 
 fun typographyFor(fontFamily: FontFamily) = buildTypography(fontFamily)
+

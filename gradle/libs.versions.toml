@@ -51,6 +51,8 @@ quickjsKt = "1.0.14"
 protobuf = "4.36.1"
 webkit = "1.17.0"
 haze = "2.0.0-rc01"
+backdrop = "2.0.1"
+kyantShapes = "1.2.1"
 
 
 [libraries]
@@ -163,6 +165,8 @@ leakcanary-android = { module = "com.squareup.leakcanary:leakcanary-android", ve
 quickjs-kt = { module = "io.github.dokar3:quickjs-kt", version.ref = "quickjsKt" }
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "haze" }
+backdrop = { module = "io.github.kyant0:backdrop", version.ref = "backdrop" }
+kyant-shapes = { module = "io.github.kyant0:shapes", version.ref = "kyantShapes" }
 
 
 
