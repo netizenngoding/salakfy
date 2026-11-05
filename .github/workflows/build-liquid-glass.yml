@@ -1,0 +1,101 @@
+name: Build Liquid Glass APK
+
+# Manual build that also publishes the APK as a GitHub Release asset, so the
+# installable file can be downloaded without digging through run artifacts.
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Gradle task to run"
+        required: true
+        default: "assembleGmsMobileArm64Release"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ inputs.task }}
+    runs-on: ubuntu-latest
+    env:
+      KEYSTORE_B64: ${{ secrets.KEYSTORE }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Restore keystore (optional)
+        if: ${{ env.KEYSTORE_B64 != '' }}
+        run: |
+          mkdir -p app/keystore
+          echo "$KEYSTORE_B64" | base64 -d > app/keystore/release.keystore
+
+      - name: Build
+        id: build
+        run: |
+          chmod +x gradlew
+          set +e
+          ./gradlew ${{ inputs.task }} --no-daemon > build-output.log 2>&1
+          code=$?
+          echo "--- build tail ---"
+          tail -n 120 build-output.log
+          echo "exit=$code" >> "$GITHUB_ENV"
+          exit $code
+        env:
+          STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+
+      # Keeps the failure reason readable from outside GitHub (logs are hosted on
+      # a storage host that some environments cannot reach).
+      - name: Report failure into the branch
+        if: failure()
+        run: |
+          git config user.name "arena-build-bot"
+          git config user.email "arena-build-bot@users.noreply.github.com"
+          {
+            echo "workflow run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo "=== errors ==="
+            grep -nE "^e: |^w: .*error|error: |FAILURE:|What went wrong|Caused by|> Task .* FAILED" build-output.log | head -n 400 || true
+            echo
+            echo "=== tail ==="
+            tail -n 400 build-output.log || true
+          } > CI_BUILD_ERRORS.txt
+          git add -f CI_BUILD_ERRORS.txt
+          git commit -m "ci: build errors [skip ci]" || true
+          git push origin HEAD:refs/heads/$GITHUB_REF_NAME || true
+
+      - name: Upload APK artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Salakfy-liquid-glass-apk
+          path: app/build/outputs/apk/**/*.apk
+
+      - name: Publish APK as release asset
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          APK=$(find app/build/outputs/apk -name "*.apk" | head -n 1)
+          echo "APK: $APK"
+          ls -lh "$APK"
+          NAME=$(basename "$APK")
+          gh release view liquid-glass >/dev/null 2>&1 || \
+            gh release create liquid-glass \
+              --title "Salakfy — Liquid Glass build" \
+              --notes "Automated build of the iOS 26/28 style Liquid Glass bottom navigation bar (Kyant0/AndroidLiquidGlass). Signed with the debug key when no keystore secret is configured." \
+              --target "$GITHUB_REF_NAME"
+          cp "$APK" "/tmp/$NAME"
+          gh release upload liquid-glass "/tmp/$NAME" --clobber
+          echo "Download: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/liquid-glass/$NAME"
