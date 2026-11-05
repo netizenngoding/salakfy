@@ -9,16 +9,20 @@ on:
         description: "Gradle task to run"
         required: true
         default: "assembleGmsMobileArm64Release"
+  push:
+    branches:
+      - "arena/2a380f6e-salakfy"
 
 permissions:
   contents: write
 
 jobs:
   build:
-    name: ${{ inputs.task }}
+    name: Liquid Glass APK
     runs-on: ubuntu-latest
     env:
       KEYSTORE_B64: ${{ secrets.KEYSTORE }}
+      TASK: ${{ inputs.task || 'assembleGmsMobileArm64Release' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,7 +46,7 @@ jobs:
         run: |
           chmod +x gradlew
           set +e
-          ./gradlew ${{ inputs.task }} --no-daemon > build-output.log 2>&1
+          ./gradlew $TASK --no-daemon > build-output.log 2>&1
           code=$?
           echo "--- build tail ---"
           tail -n 120 build-output.log
