@@ -3043,7 +3043,7 @@ class MainActivity : ComponentActivity() {
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                 }
-                                androidx.compose.material3.Checkbox(
+                                LiquidCheckbox(
                                     checked = isChecked,
                                     onCheckedChange = { checked ->
                                         selected = if (checked) selected + category else selected - category
