@@ -4,12 +4,12 @@
  * GPL-3.0 License | Contributors: see git history
  * Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
  *
- * Liquid Glass toggle — same look and feel as Kyant0/AndroidLiquidGlass (Apache-2.0)
- * catalog/components/LiquidToggle.kt: 64x28 track that lerps to iOS green, 40x24 glass knob
- * that balloons + refracts while held, velocity squash. Material-compatible signature.
+ * Liquid Glass toggle, matching Kyant0/AndroidLiquidGlass (Apache-2.0) LiquidToggle:
+ * 64x28 track lerping to iOS green, 40x24 white-glass knob, 1.5x balloon + chromatic rim while
+ * held, velocity squash, drag the knob or tap anywhere.
  *
- * No saved layer backdrops and no layout-phase work, so it is crash-safe inside lazy lists
- * and dialogs and cheap to animate.
+ * Knob is plain Compose graphics (no backdrop layer) so it is crash-safe in settings lists,
+ * lazy lists and dialogs, and does zero work in the layout phase.
  */
 
 package moe.rukamori.archivetune.ui.component.liquidglass
@@ -35,11 +35,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.util.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -48,19 +51,10 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
-import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.highlight.Highlight
-import com.kyant.backdrop.shadow.InnerShadow
-import com.kyant.backdrop.shadow.Shadow
-import com.kyant.shapes.Capsule
+import androidx.compose.ui.util.lerp
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import moe.rukamori.archivetune.ui.theme.LocalGlassBackdrop
 import kotlin.math.abs
-
-private val SwitchCapsuleShape = Capsule()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,8 +69,7 @@ fun LiquidSwitch(
 ) {
     val isLightTheme = isLightLiquidTheme()
     val accentColor = if (isLightTheme) LiquidGreenLight else LiquidGreenDark
-    val trackColor = if (isLightTheme) Color(0xFF787878).copy(0.24f) else Color(0xFF787880).copy(0.4f)
-    val backdrop = LocalGlassBackdrop.current
+    val trackColor = if (isLightTheme) Color(0xFF787878).copy(alpha = 0.26f) else Color(0xFF787880).copy(alpha = 0.42f)
 
     val density = LocalDensity.current
     val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
@@ -112,20 +105,19 @@ fun LiquidSwitch(
                 if (!interactive) return@pointerInput
                 var accumulated = 0f
 
+                fun commit(next: Boolean) {
+                    fraction = if (next) 1f else 0f
+                    scope.launch { position.animateTo(fraction, spring(0.88f, 520f, 0.001f)) }
+                    currentOnCheckedChange?.invoke(next)
+                }
+
                 fun finishDrag() {
                     scope.launch { press.animateTo(0f, spring(0.8f, 500f, 0.001f)) }
                     scope.launch { stretch.animateTo(0f, spring(0.6f, 400f, 0.001f)) }
                     if (abs(accumulated) < 8.dp.toPx()) {
-                        // tap
-                        val next = !currentChecked
-                        fraction = if (next) 1f else 0f
-                        scope.launch { position.animateTo(fraction, spring(0.88f, 520f, 0.001f)) }
-                        currentOnCheckedChange?.invoke(next)
+                        commit(!currentChecked)
                     } else {
-                        val next = position.value >= 0.5f
-                        fraction = if (next) 1f else 0f
-                        scope.launch { position.animateTo(fraction, spring(0.88f, 520f, 0.001f)) }
-                        currentOnCheckedChange?.invoke(next)
+                        commit(position.value >= 0.5f)
                     }
                 }
 
@@ -163,7 +155,7 @@ fun LiquidSwitch(
         Box(
             Modifier
                 .size(64.dp, 28.dp)
-                .clip(Capsule())
+                .clip(CapsuleShape)
                 .drawBehind {
                     drawRect(lerp(trackColor, accentColor, position.value))
                 },
@@ -176,37 +168,63 @@ fun LiquidSwitch(
                     val padding = 2.dp.toPx()
                     val x = lerp(padding, padding + dragWidth, position.value)
                     translationX = if (isLtr) x else -x
-                    val base = 1f + 0.5f * press.value
+                    val pressed = press.value
+                    val base = 1f + 0.5f * pressed
                     scaleX = base + stretch.value
                     scaleY = (base - abs(stretch.value) * 0.4f).coerceIn(0.8f, 1.6f)
                 }
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = { SwitchCapsuleShape },
-                    effects = {
-                        val pressed = press.value
-                        blur(8f.dp.toPx() * (1f - pressed))
-                        lens(
-                            5f.dp.toPx() * pressed,
-                            10f.dp.toPx() * pressed,
-                            chromaticAberration = true,
+                .drawBehind {
+                    val radius = CornerRadius(size.height / 2f)
+                    drawRoundRect(
+                        color = Color.Black.copy(alpha = 0.18f),
+                        topLeft = Offset(0f, 1.5.dp.toPx()),
+                        size = size,
+                        cornerRadius = radius,
+                    )
+                    drawRoundRect(color = Color.White, cornerRadius = radius)
+                    // the track colour showing "through" the glass
+                    if (position.value > 0.001f) {
+                        drawRoundRect(
+                            color = accentColor.copy(alpha = 0.16f + 0.24f * position.value),
+                            size = size,
+                            cornerRadius = radius,
                         )
-                    },
-                    highlight = {
-                        Highlight.Ambient.copy(
-                            width = Highlight.Ambient.width / 1.5f,
-                            blurRadius = Highlight.Ambient.blurRadius / 1.5f,
-                            alpha = 0.4f + 0.6f * press.value,
+                    }
+                    drawRoundRect(
+                        brush =
+                            Brush.verticalGradient(
+                                colors = listOf(Color.White.copy(alpha = 0.6f), Color.Transparent),
+                                startY = 0f,
+                                endY = size.height * 0.65f,
+                            ),
+                        cornerRadius = radius,
+                    )
+                    val pressed = press.value
+                    if (pressed > 0.01f) {
+                        drawRoundRect(
+                            color = Color(0xFF4FA8FF).copy(alpha = 0.32f * pressed),
+                            topLeft = Offset(0.75.dp.toPx(), 0f),
+                            size = Size(size.width - 1.5.dp.toPx(), size.height),
+                            cornerRadius = radius,
+                            style = Stroke(width = 1.dp.toPx()),
                         )
-                    },
-                    shadow = { Shadow(radius = 4.dp, color = Color.Black.copy(alpha = 0.08f)) },
-                    innerShadow = {
-                        val pressed = press.value
-                        InnerShadow(radius = 4.dp * pressed, alpha = pressed)
-                    },
-                    onDrawSurface = { drawRect(Color.White) },
-                )
+                        drawRoundRect(
+                            color = Color(0xFFFF7AA8).copy(alpha = 0.28f * pressed),
+                            topLeft = Offset(0f, 0.75.dp.toPx()),
+                            size = Size(size.width - 1.5.dp.toPx(), size.height),
+                            cornerRadius = radius,
+                            style = Stroke(width = 1.dp.toPx()),
+                        )
+                    }
+                    drawRoundRect(
+                        color = Color.Black.copy(alpha = 0.07f),
+                        cornerRadius = radius,
+                        style = Stroke(width = 1.dp.toPx()),
+                    )
+                }
                 .size(40.dp, 24.dp),
         )
     }
 }
+
+private val CapsuleShape = com.kyant.shapes.Capsule()

@@ -4,77 +4,86 @@
  * GPL-3.0 License | Contributors: see git history
  * Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
  *
- * iOS 26/28 Liquid Glass tab bar, shaped after Kyant0/AndroidLiquidGlass (Apache-2.0)
- * "Bottom Tabs" screen — 64dp capsule / 56dp thumb / 4dp insets / lens + chromatic aberration.
+ * 1:1 port of Kyant0/AndroidLiquidGlass (Apache-2.0) — the "Bottom Tabs" screen of the
+ * Backdrop Catalog demo APK:
  *
- * Differences from the catalog demo are deliberate and only about smoothness:
- *  1. selecting a tab never "presses" the thumb, so the bubble does not balloon and
- *     collapse on every tab change (that was the visible "patah" when switching tabs);
- *  2. no invisible accent refraction layer -> the selected icon can no longer ghost /
- *     double against the monochrome icon behind it; the icon rides inside the bubble
- *     exactly like Apple Music;
- *  3. a single animation source (`position`) + direct 1:1 finger tracking while dragging,
- *     so nothing fights over the same Animatable;
- *  4. two glass layers instead of three (fewer blur/lens passes per frame => no dropped frames).
+ *   catalog/components/LiquidBottomTabs.kt   (structure + physics, copied verbatim)
+ *   catalog/components/LiquidBottomTab.kt    (tab item, copied verbatim)
+ *   catalog/destinations/BottomTabsContent.kt(64dp bar, 28dp icon, 12sp label)
+ *
+ * Everything that makes the demo what it is, is kept:
+ *  - 64dp glass capsule, 56dp thumb, 4dp insets, pressedScale 78/56
+ *  - the invisible accent-tinted refraction layer, so the selected icon lives *inside*
+ *    the glass lens and gets magnified / chromatic-aberrated when the bubble is pressed
+ *  - DampedDragAnimation physics (velocity squash/stretch), panel wobble,
+ *    InteractiveHighlight specular blob that follows the finger
+ *  - the bubble is draggable between tabs and pressable
+ *
+ * Only two things are added on top, both invisible: a re-select callback when the bubble of
+ * the current tab is tapped, and a guard so navigation does not re-trigger itself.
  */
 
 package moe.rukamori.archivetune.ui.component
 
 import android.os.SystemClock
 import android.view.ViewConfiguration
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.geometry.isSpecified
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastCoerceIn
+import androidx.compose.ui.util.fastRoundToInt
+import androidx.compose.ui.util.lerp
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
@@ -83,36 +92,26 @@ import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
 import com.kyant.shapes.Capsule
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
-import moe.rukamori.archivetune.ui.component.liquidglass.LiquidAccentDark
-import moe.rukamori.archivetune.ui.component.liquidglass.LiquidAccentLight
-import moe.rukamori.archivetune.ui.component.liquidglass.inspectDragGestures
+import moe.rukamori.archivetune.ui.component.liquidglass.DampedDragAnimation
+import moe.rukamori.archivetune.ui.component.liquidglass.InteractiveHighlight
 import moe.rukamori.archivetune.ui.component.liquidglass.isLightLiquidTheme
 import moe.rukamori.archivetune.ui.screens.Screens
 import moe.rukamori.archivetune.ui.theme.LocalGlassBackdrop
 import kotlin.math.abs
-import kotlin.math.roundToInt
+import kotlin.math.sign
 
-private val TabCapsuleShape = Capsule()
-
-private val TabBarHeight = 64.dp
+private val TabBarTrackHeight = 64.dp
 private val TabBarThumbHeight = 56.dp
 private val TabBarInset = 4.dp
 private val TabBarIconSize = 28.dp
 private val TabBarLabelSize = 12.sp
+private val TabCapsuleShape = Capsule()
 
-/** Critically damped: the bubble glides, it never bounces or overshoots. */
-private val TabSlideSpec = spring<Float>(dampingRatio = 0.92f, stiffness = 480f, visibilityThreshold = 0.001f)
-private val PressInSpec = spring<Float>(dampingRatio = 0.75f, stiffness = 650f, visibilityThreshold = 0.001f)
-private val PressOutSpec = spring<Float>(dampingRatio = 0.8f, stiffness = 500f, visibilityThreshold = 0.001f)
+private val LocalLiquidTabScale = staticCompositionLocalOf<() -> Float> { { 1f } }
 
-/**
- * iOS 26/28 Liquid Glass bottom tab bar.
- *
- * One glass capsule holds every tab; the selection is a glass lens that slides between them,
- * carries the selected icon/label (accent tinted, like Apple Music) and turns into a refractive
- * lens with chromatic aberration only while a finger is on it.
- */
 @Composable
 fun LiquidGlassTabBar(
     items: List<Screens>,
@@ -125,12 +124,12 @@ fun LiquidGlassTabBar(
     if (items.isEmpty()) return
 
     val isLightTheme = isLightLiquidTheme()
-    val accentColor = if (isLightTheme) LiquidAccentLight else LiquidAccentDark
+    val accentColor = if (isLightTheme) Color(0xFF0088FF) else Color(0xFF0091FF)
     val containerColor =
         when {
-            pureBlack -> Color.Black.copy(alpha = 0.56f)
-            isLightTheme -> Color(0xFFFAFAFA).copy(alpha = 0.58f)
-            else -> Color(0xFF141414).copy(alpha = 0.62f)
+            pureBlack -> Color.Black.copy(alpha = 0.6f)
+            isLightTheme -> Color(0xFFFAFAFA).copy(alpha = 0.52f)
+            else -> Color(0xFF121212).copy(alpha = 0.58f)
         }
     val contentColor = if (isLightTheme) Color.Black else Color.White
 
@@ -140,332 +139,284 @@ fun LiquidGlassTabBar(
     val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
 
     val tabsCount = items.size
-    val lastIndex = tabsCount - 1
     val selectedIndex = items.indexOfFirst(isSelected).let { if (it < 0) 0 else it }
-
-    val currentSelectedIndex by rememberUpdatedState(selectedIndex)
     val currentItems by rememberUpdatedState(items)
-    val currentOnItemClick by rememberUpdatedState(onItemClick)
     val currentIsSelected by rememberUpdatedState(isSelected)
+    val currentOnItemClick by rememberUpdatedState(onItemClick)
 
-    val scope = rememberCoroutineScope()
-    val position = remember { Animatable(selectedIndex.toFloat(), 0.001f) }
-    val pressProgress = remember { Animatable(0f, 0.001f) }
-    val velocityStretch = remember { Animatable(0f, 0.001f) }
-    val isDragging = remember { mutableStateOf(false) }
-    val glowCenter = remember { mutableStateOf(Offset.Unspecified) }
-
+    var pendingUserSelection by remember { mutableStateOf(false) }
     var lastClickTime by remember { mutableStateOf(0L) }
-    val onTabClick: (Screens) -> Unit = { screen ->
-        val now = SystemClock.uptimeMillis()
-        val isDoubleTap =
-            screen == Screens.Search &&
-                onItemDoubleClick != null &&
-                now - lastClickTime <= ViewConfiguration.getDoubleTapTimeout()
-        lastClickTime = if (isDoubleTap) 0L else now
-        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        if (isDoubleTap) {
-            onItemDoubleClick?.invoke(screen)
-        } else {
-            currentOnItemClick(screen, currentIsSelected(screen))
-        }
-    }
 
-    // Destination changed outside the bar (tap, deep link, back): glide there. Never press.
-    LaunchedEffect(selectedIndex, tabsCount) {
-        if (!isDragging.value) {
-            val target = selectedIndex.toFloat()
-            if (abs(position.value - target) > 0.001f) {
-                position.animateTo(target, TabSlideSpec)
+    val animationScope = rememberCoroutineScope()
+
+    BoxWithConstraints(modifier, contentAlignment = Alignment.CenterStart) {
+        val tabWidth =
+            with(density) {
+                (constraints.maxWidth.toFloat() - TabBarInset.toPx() * 2f) / tabsCount
+            }
+
+        val tabsBackdrop = rememberLayerBackdrop()
+        val offsetAnimation = remember { Animatable(0f) }
+        val panelOffset by remember(density, constraints.maxWidth) {
+            derivedStateOf {
+                val fraction = (offsetAnimation.value / constraints.maxWidth).fastCoerceIn(-1f, 1f)
+                with(density) {
+                    TabBarInset.toPx() * fraction.sign * EaseOut.transform(abs(fraction))
+                }
             }
         }
-    }
 
-    BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.CenterStart) {
-        val cellWidth = ((maxWidth - TabBarInset * 2) / tabsCount).coerceAtLeast(1.dp)
-        val cellWidthPx = with(density) { cellWidth.toPx() }
-        val insetPx = with(density) { TabBarInset.toPx() }
-        val slop = with(density) { 8.dp.toPx() }
+        var currentIndex by remember { mutableIntStateOf(selectedIndex) }
+        var dragMoved by remember { mutableStateOf(false) }
 
-        val dragModifier =
-            Modifier.pointerInput(tabsCount, cellWidthPx, isLtr) {
-                val touchSlop = viewConfiguration.touchSlop
-                var accumulated = 0f
-                var startValue = 0f
-                var lastEventTime = 0L
+        val dampedDragAnimation =
+            remember(animationScope, tabsCount) {
+                DampedDragAnimation(
+                    animationScope = animationScope,
+                    initialValue = selectedIndex.toFloat(),
+                    valueRange = 0f..(tabsCount - 1).toFloat(),
+                    visibilityThreshold = 0.001f,
+                    initialScale = 1f,
+                    pressedScale = 78f / 56f,
+                    onDragStarted = {
+                        dragMoved = false
+                    },
+                    onDragStopped = {
+                        val dragged = dragMoved
+                        val targetIndex = targetValue.fastRoundToInt().fastCoerceIn(0, tabsCount - 1)
+                        animateToValue(targetIndex.toFloat())
+                        animationScope.launch {
+                            offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
+                        }
+                        if (targetIndex != currentIndex) {
+                            currentIndex = targetIndex
+                            pendingUserSelection = true
+                        } else if (!dragged) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            currentOnItemClick(currentItems[targetIndex], true)
+                        }
+                    },
+                    onDrag = { _, dragAmount ->
+                        if (abs(dragAmount.x) > 0.5f) {
+                            dragMoved = true
+                        }
+                        updateValue(
+                            (targetValue + dragAmount.x / tabWidth * if (isLtr) 1f else -1f)
+                                .fastCoerceIn(0f, (tabsCount - 1).toFloat()),
+                        )
+                        animationScope.launch {
+                            offsetAnimation.snapTo(offsetAnimation.value + dragAmount.x)
+                        }
+                    },
+                )
+            }
 
-                fun settle() {
-                    val dragged = abs(accumulated) > touchSlop
-                    isDragging.value = false
-                    glowCenter.value = Offset.Unspecified
-                    scope.launch { pressProgress.animateTo(0f, PressOutSpec) }
-                    scope.launch { velocityStretch.animateTo(0f, PressOutSpec) }
-
-                    val target = position.value.roundToInt().coerceIn(0, lastIndex)
-                    scope.launch { position.animateTo(target.toFloat(), TabSlideSpec) }
-
-                    if (target != currentSelectedIndex) {
+        // destination changed from outside (tap, deep link, back) -> move the bubble
+        LaunchedEffect(dampedDragAnimation) {
+            snapshotFlow { currentItems.indexOfFirst(currentIsSelected).let { if (it < 0) 0 else it } }
+                .collectLatest { index ->
+                    currentIndex = index
+                }
+        }
+        // thumb moves + notify navigation when the user dragged it there
+        LaunchedEffect(dampedDragAnimation) {
+            snapshotFlow { currentIndex }
+                .drop(1)
+                .collectLatest { index ->
+                    dampedDragAnimation.animateToValue(index.toFloat())
+                    if (pendingUserSelection) {
+                        pendingUserSelection = false
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        currentOnItemClick(currentItems[target], false)
-                    } else if (!dragged) {
-                        // tap on the bubble of the current tab -> app's re-select behaviour
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        currentOnItemClick(currentItems[target], true)
+                        currentOnItemClick(currentItems[index.coerceIn(0, tabsCount - 1)], false)
                     }
                 }
+        }
 
-                inspectDragGestures(
-                    onDragStart = { down ->
-                        isDragging.value = true
-                        accumulated = 0f
-                        startValue = position.value
-                        lastEventTime = SystemClock.uptimeMillis()
-                        glowCenter.value = down.position
-                        scope.launch { pressProgress.animateTo(1f, PressInSpec) }
+        val interactiveHighlight =
+            remember(animationScope) {
+                InteractiveHighlight(
+                    animationScope = animationScope,
+                    position = { size, _ ->
+                        Offset(
+                            if (isLtr) {
+                                (dampedDragAnimation.value + 0.5f) * tabWidth + panelOffset
+                            } else {
+                                size.width - (dampedDragAnimation.value + 0.5f) * tabWidth + panelOffset
+                            },
+                            size.height / 2f,
+                        )
                     },
-                    onDragEnd = { settle() },
-                    onDragCancel = { settle() },
-                ) { change, dragAmount ->
-                    if (dragAmount != Offset.Zero) {
-                        accumulated += dragAmount.x
-                        if (abs(accumulated) > slop) {
-                            change.consume()
-                        }
-                        glowCenter.value = change.position
-                        val delta = accumulated / cellWidthPx * (if (isLtr) 1f else -1f)
-                        val target = (startValue + delta).coerceIn(0f, lastIndex.toFloat())
-                        scope.launch { position.snapTo(target) }
+                )
+            }
 
+        val tabContent: @Composable RowScope.() -> Unit = {
+            items.forEach { screen ->
+                LiquidGlassTab(
+                    onClick = {
                         val now = SystemClock.uptimeMillis()
-                        val dt = (now - lastEventTime).coerceAtLeast(1L)
-                        lastEventTime = now
-                        val velocity = dragAmount.x / dt * 1000f // px / s
-                        scope.launch {
-                            velocityStretch.animateTo(
-                                (velocity / 9000f).coerceIn(-0.16f, 0.16f),
-                                spring(0.5f, 900f, 0.001f),
-                            )
+                        val isDoubleTap =
+                            screen == Screens.Search &&
+                                onItemDoubleClick != null &&
+                                now - lastClickTime <= ViewConfiguration.getDoubleTapTimeout()
+                        lastClickTime = if (isDoubleTap) 0L else now
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (isDoubleTap) {
+                            onItemDoubleClick?.invoke(screen)
+                        } else {
+                            currentOnItemClick(screen, currentIsSelected(screen))
                         }
-                    }
-                }
-            }
-
-        // ---------- glass capsule ----------
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .drawBackdrop(
-                        backdrop = backdrop,
-                        shape = { TabCapsuleShape },
-                        effects = {
-                            vibrancy()
-                            blur(10f.dp.toPx())
-                            lens(24f.dp.toPx(), 24f.dp.toPx())
-                        },
-                        highlight = {
-                            if (isLightTheme) Highlight.Default else Highlight.Default.copy(alpha = 0.7f)
-                        },
-                        shadow = {
-                            Shadow(
-                                radius = 20f.dp,
-                                color = Color.Black.copy(alpha = if (isLightTheme) 0.14f else 0.36f),
-                            )
-                        },
-                        layerBlock = {
-                            val progress = pressProgress.value
-                            val scale = 1f + (16f.dp.toPx() / size.width.coerceAtLeast(1f)) * progress
-                            scaleX = scale
-                            scaleY = scale
-                        },
-                        onDrawSurface = { drawRect(containerColor) },
-                    ).drawWithContent {
-                        // soft specular blob that follows the finger
-                        val progress = pressProgress.value
-                        if (progress > 0f && glowCenter.value.isSpecified) {
-                            val center = glowCenter.value
-                            clipPath(
-                                Path().apply {
-                                    addRoundRect(
-                                        RoundRect(
-                                            left = 0f,
-                                            top = 0f,
-                                            right = size.width,
-                                            bottom = size.height,
-                                            cornerRadius = CornerRadius(size.height / 2f),
-                                        ),
-                                    )
-                                },
-                            ) {
-                                drawRect(
-                                    brush =
-                                        Brush.radialGradient(
-                                            colors =
-                                                listOf(
-                                                    Color.White.copy(alpha = 0.16f * progress),
-                                                    Color.Transparent,
-                                                ),
-                                            center = center,
-                                            radius = size.minDimension * 1.15f,
-                                        ),
-                                )
-                            }
-                        }
-                        drawContent()
                     },
-        ) {
-            // ---------- glass thumb (carries the selected icon) ----------
-            Box(
-                modifier =
-                    Modifier
-                        .align(Alignment.CenterStart)
-                        .width(cellWidth)
-                        .height(TabBarThumbHeight)
-                        .graphicsLayer {
-                            val value = position.value
-                            translationX =
-                                if (isLtr) {
-                                    insetPx + value * cellWidthPx
-                                } else {
-                                    -(insetPx + value * cellWidthPx)
-                                }
-                            val remaining = (position.targetValue - value).fastCoerceIn(-1f, 1f)
-                            val velocity = velocityStretch.value
-                            // demo-exact balloon: 56dp -> 78dp while a finger is on the bubble
-                            val press = 1f + (78f / 56f - 1f) * pressProgress.value
-                            scaleX = (1f + abs(remaining) * 0.14f + velocity) * press
-                            scaleY =
-                                ((1f - abs(remaining) * 0.06f - abs(velocity) * 0.5f) * press)
-                                    .coerceIn(0.86f, 1.45f)
-                        }
-                        .then(dragModifier)
-                        .drawBackdrop(
-                            backdrop = backdrop,
-                            shape = { TabCapsuleShape },
-                            effects = {
-                                val progress = pressProgress.value
-                                vibrancy()
-                                blur(8f.dp.toPx() * (1f - progress))
-                                lens(
-                                    10f.dp.toPx() * progress,
-                                    14f.dp.toPx() * progress,
-                                    chromaticAberration = true,
-                                )
-                            },
-                            highlight = {
-                                val progress = pressProgress.value
-                                Highlight.Default.copy(alpha = 0.35f + 0.65f * progress)
-                            },
-                            shadow = {
-                                val progress = pressProgress.value
-                                Shadow(
-                                    radius = 8f.dp + 6f.dp * progress,
-                                    color = Color.Black,
-                                    alpha = 0.08f + 0.18f * progress,
-                                )
-                            },
-                            innerShadow = {
-                                val progress = pressProgress.value
-                                InnerShadow(radius = 8f.dp * progress, alpha = 0.9f * progress)
-                            },
-                            onDrawSurface = {
-                                val progress = pressProgress.value
-                                // resting pill (iOS selection tint) that dissolves into the lens on press
-                                drawRect(
-                                    if (isLightTheme) {
-                                        Color.Black.copy(alpha = 0.10f)
-                                    } else {
-                                        Color.White.copy(alpha = 0.18f)
-                                    },
-                                    alpha = 1f - 0.55f * progress,
-                                )
-                                drawRect(Color.Black.copy(alpha = 0.03f * progress))
-                            },
-                        ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Crossfade(targetState = selectedIndex, animationSpec = tween(150), label = "tabIcon") { index ->
-                    val screen = items[index.coerceIn(0, lastIndex)]
-                    TabBarContent(
-                        iconId = screen.iconIdActive,
-                        titleId = screen.titleId,
-                        tint = accentColor,
-                        labelWeight = FontWeight.SemiBold,
+                ) {
+                    Icon(
+                        painter = painterResource(if (isSelected(screen)) screen.iconIdActive else screen.iconIdInactive),
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier = Modifier.size(TabBarIconSize),
+                    )
+                    Text(
+                        text = stringResource(screen.titleId),
+                        color = contentColor,
+                        fontSize = TabBarLabelSize,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
-
-            // ---------- tab row ----------
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = TabBarInset),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    items.forEach { screen ->
-                        val selected = isSelected(screen)
-                        val itemAlpha by
-                            animateFloatAsState(
-                                targetValue = if (selected) 0f else 1f,
-                                animationSpec = tween(160),
-                                label = "tabItemAlpha",
-                            )
-                        Box(
-                            modifier =
-                                Modifier
-                                    .weight(1f)
-                                    .fillMaxSize()
-                                    .graphicsLayer { alpha = itemAlpha }
-                                    .clickable(
-                                        interactionSource = null,
-                                        indication = null,
-                                        role = Role.Tab,
-                                    ) { onTabClick(screen) },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            TabBarContent(
-                                iconId = screen.iconIdInactive,
-                                titleId = screen.titleId,
-                                tint = contentColor.copy(alpha = if (isLightTheme) 0.68f else 0.62f),
-                                labelWeight = FontWeight.Medium,
-                            )
-                        }
-                    }
-                }
-            }
         }
+
+        // ---------- 1. glass capsule ----------
+        Row(
+            Modifier
+                .graphicsLayer {
+                    translationX = panelOffset
+                }.drawBackdrop(
+                    backdrop = backdrop,
+                    shape = { TabCapsuleShape },
+                    effects = {
+                        vibrancy()
+                        blur(8f.dp.toPx())
+                        lens(24f.dp.toPx(), 24f.dp.toPx())
+                    },
+                    layerBlock = {
+                        val progress = dampedDragAnimation.pressProgress
+                        val scale = lerp(1f, 1f + 16f.dp.toPx() / size.width.coerceAtLeast(1f), progress)
+                        scaleX = scale
+                        scaleY = scale
+                    },
+                    onDrawSurface = { drawRect(containerColor) },
+                ).then(interactiveHighlight.modifier)
+                .height(TabBarTrackHeight)
+                .fillMaxWidth()
+                .padding(TabBarInset),
+            verticalAlignment = Alignment.CenterVertically,
+            content = tabContent,
+        )
+
+        // ---------- 2. invisible accent layer (refraction source for the lens) ----------
+        CompositionLocalProvider(
+            LocalLiquidTabScale provides {
+                lerp(1f, 1.2f, dampedDragAnimation.pressProgress)
+            },
+        ) {
+            Row(
+                Modifier
+                    .clearAndSetSemantics { }
+                    .alpha(0f)
+                    .layerBackdrop(tabsBackdrop)
+                    .graphicsLayer {
+                        translationX = panelOffset
+                    }.height(TabBarThumbHeight)
+                    .fillMaxWidth()
+                    .padding(horizontal = TabBarInset)
+                    .graphicsLayer(colorFilter = ColorFilter.tint(accentColor)),
+                verticalAlignment = Alignment.CenterVertically,
+                content = tabContent,
+            )
+        }
+
+        // ---------- 3. the glass thumb ----------
+        Box(
+            Modifier
+                .padding(horizontal = TabBarInset)
+                .graphicsLayer {
+                    translationX =
+                        if (isLtr) {
+                            dampedDragAnimation.value * tabWidth + panelOffset
+                        } else {
+                            -(dampedDragAnimation.value * tabWidth) + panelOffset
+                        }
+                }.then(interactiveHighlight.gestureModifier)
+                .then(dampedDragAnimation.modifier)
+                .drawBackdrop(
+                    backdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop),
+                    shape = { TabCapsuleShape },
+                    effects = {
+                        val progress = dampedDragAnimation.pressProgress
+                        lens(
+                            10f.dp.toPx() * progress,
+                            14f.dp.toPx() * progress,
+                            chromaticAberration = true,
+                        )
+                    },
+                    highlight = {
+                        val progress = dampedDragAnimation.pressProgress
+                        Highlight.Default.copy(alpha = progress)
+                    },
+                    shadow = {
+                        val progress = dampedDragAnimation.pressProgress
+                        Shadow(alpha = progress)
+                    },
+                    innerShadow = {
+                        val progress = dampedDragAnimation.pressProgress
+                        InnerShadow(
+                            radius = 8f.dp * progress,
+                            alpha = progress,
+                        )
+                    },
+                    layerBlock = {
+                        scaleX = dampedDragAnimation.scaleX
+                        scaleY = dampedDragAnimation.scaleY
+                        val velocity = dampedDragAnimation.velocity / 10f
+                        scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
+                        scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+                    },
+                    onDrawSurface = {
+                        val progress = dampedDragAnimation.pressProgress
+                        drawRect(
+                            if (isLightTheme) Color.Black.copy(0.1f) else Color.White.copy(0.1f),
+                            alpha = 1f - progress,
+                        )
+                        drawRect(Color.Black.copy(alpha = 0.03f * progress))
+                    },
+                ).height(TabBarThumbHeight)
+                .fillMaxWidth(1f / tabsCount),
+        )
     }
 }
 
 @Composable
-private fun TabBarContent(
-    iconId: Int,
-    titleId: Int,
-    tint: Color,
-    labelWeight: FontWeight,
+private fun RowScope.LiquidGlassTab(
+    onClick: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
+    val scale = LocalLiquidTabScale.current
     Column(
+        Modifier
+            .clip(TabCapsuleShape)
+            .clickable(
+                interactionSource = null,
+                indication = null,
+                role = Role.Tab,
+                onClick = onClick,
+            ).fillMaxHeight()
+            .weight(1f)
+            .graphicsLayer {
+                val scale = scale()
+                scaleX = scale
+                scaleY = scale
+            },
+        verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Icon(
-            painter = painterResource(iconId),
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.size(TabBarIconSize),
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            text = stringResource(titleId),
-            color = tint,
-            fontSize = TabBarLabelSize,
-            fontWeight = labelWeight,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
+        content = content,
+    )
 }
