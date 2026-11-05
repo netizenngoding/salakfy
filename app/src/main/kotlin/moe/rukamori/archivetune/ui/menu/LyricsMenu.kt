@@ -56,9 +56,9 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
+import moe.rukamori.archivetune.ui.component.liquidglass.LiquidSlider as Slider
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
+import moe.rukamori.archivetune.ui.component.liquidglass.LiquidSwitch as Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
