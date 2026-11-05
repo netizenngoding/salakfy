@@ -85,6 +85,7 @@ jobs:
         with:
           name: Salakfy-liquid-glass-apk
           path: app/build/outputs/apk/**/*.apk
+          overwrite: true
 
       - name: Publish APK as release asset
         if: success()
