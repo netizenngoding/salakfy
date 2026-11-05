@@ -127,7 +127,7 @@ fun LiquidSlider(
                 } else {
                     v
                 }
-            state.onValueChange(snapped.coerceIn(valueRange.start, valueRange.endInclusive))
+            state.onValueChange?.invoke(snapped.coerceIn(valueRange.start, valueRange.endInclusive))
         },
         onValueChangeFinished = null,
         valueRange = valueRange,
