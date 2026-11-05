@@ -93,6 +93,8 @@ import moe.rukamori.archivetune.ui.theme.LocalGlassBackdrop
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+private val TabCapsuleShape = Capsule()
+
 private val TabBarHeight = 64.dp
 private val TabBarThumbHeight = 56.dp
 private val TabBarInset = 4.dp
@@ -126,9 +128,9 @@ fun LiquidGlassTabBar(
     val accentColor = if (isLightTheme) LiquidAccentLight else LiquidAccentDark
     val containerColor =
         when {
-            pureBlack -> Color.Black.copy(alpha = 0.42f)
-            isLightTheme -> Color(0xFFFAFAFA).copy(alpha = 0.42f)
-            else -> Color(0xFF121212).copy(alpha = 0.42f)
+            pureBlack -> Color.Black.copy(alpha = 0.56f)
+            isLightTheme -> Color(0xFFFAFAFA).copy(alpha = 0.58f)
+            else -> Color(0xFF141414).copy(alpha = 0.62f)
         }
     val contentColor = if (isLightTheme) Color.Black else Color.White
 
@@ -255,10 +257,10 @@ fun LiquidGlassTabBar(
                     .fillMaxSize()
                     .drawBackdrop(
                         backdrop = backdrop,
-                        shape = { Capsule() },
+                        shape = { TabCapsuleShape },
                         effects = {
                             vibrancy()
-                            blur(8f.dp.toPx())
+                            blur(10f.dp.toPx())
                             lens(24f.dp.toPx(), 24f.dp.toPx())
                         },
                         highlight = {
@@ -269,6 +271,12 @@ fun LiquidGlassTabBar(
                                 radius = 20f.dp,
                                 color = Color.Black.copy(alpha = if (isLightTheme) 0.14f else 0.36f),
                             )
+                        },
+                        layerBlock = {
+                            val progress = pressProgress.value
+                            val scale = 1f + (16f.dp.toPx() / size.width.coerceAtLeast(1f)) * progress
+                            scaleX = scale
+                            scaleY = scale
                         },
                         onDrawSurface = { drawRect(containerColor) },
                     ).drawWithContent {
@@ -323,20 +331,21 @@ fun LiquidGlassTabBar(
                                 }
                             val remaining = (position.targetValue - value).fastCoerceIn(-1f, 1f)
                             val velocity = velocityStretch.value
-                            val press = 1f + 0.1f * pressProgress.value
+                            // demo-exact balloon: 56dp -> 78dp while a finger is on the bubble
+                            val press = 1f + (78f / 56f - 1f) * pressProgress.value
                             scaleX = (1f + abs(remaining) * 0.14f + velocity) * press
                             scaleY =
                                 ((1f - abs(remaining) * 0.06f - abs(velocity) * 0.5f) * press)
-                                    .coerceIn(0.86f, 1.2f)
+                                    .coerceIn(0.86f, 1.45f)
                         }
                         .then(dragModifier)
                         .drawBackdrop(
                             backdrop = backdrop,
-                            shape = { Capsule() },
+                            shape = { TabCapsuleShape },
                             effects = {
                                 val progress = pressProgress.value
                                 vibrancy()
-                                blur(6f.dp.toPx() * (1f - progress))
+                                blur(8f.dp.toPx() * (1f - progress))
                                 lens(
                                     10f.dp.toPx() * progress,
                                     14f.dp.toPx() * progress,
@@ -364,9 +373,9 @@ fun LiquidGlassTabBar(
                                 // resting pill (iOS selection tint) that dissolves into the lens on press
                                 drawRect(
                                     if (isLightTheme) {
-                                        Color.Black.copy(alpha = 0.08f)
+                                        Color.Black.copy(alpha = 0.10f)
                                     } else {
-                                        Color.White.copy(alpha = 0.14f)
+                                        Color.White.copy(alpha = 0.18f)
                                     },
                                     alpha = 1f - 0.55f * progress,
                                 )
