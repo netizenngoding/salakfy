@@ -312,7 +312,8 @@ fun LiquidGlassTabBar(
                             },
                             onDrawSurface = {
                                 val progress = pressProgress.value
-                                drawRect(glass.selection, alpha = 1f - progress)
+                                // Keep a faint tint while pressed so the lens never looks hollow.
+                                drawRect(glass.selection, alpha = 1f - 0.6f * progress)
                                 drawRect(Color.Black.copy(alpha = 0.04f * progress))
                             },
                         ),

@@ -118,3 +118,38 @@ Replace the files in `app/src/main/res/mipmap-*/ic_launcher*.png` and
 - If you distribute the APK, you **must also share the source code** (e.g. a public GitHub repo).
 - Keep credits for the original author (rukamori / ArchiveTune) — the About page still shows the credits.
 - Do not claim it was built from scratch; write "Based on ArchiveTune".
+
+---
+
+## Bottom navigation bar — Liquid Glass (iOS 26/28 style)
+
+The bottom tab bar is a floating **Liquid Glass** capsule built on
+[Kyant0/AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass) (`io.github.kyant0:backdrop`,
+already a dependency) — the same library/technique Apple uses for iOS 26 "Liquid Glass".
+
+| Piece | File |
+|---|---|
+| Glass tab bar (capsule, sliding lens thumb, drag, physics) | `app/src/main/kotlin/moe/rukamori/archivetune/ui/component/LiquidGlassTabBar.kt` |
+| Drag-gesture observer (port of Kyant's `inspectDragGestures`) | `app/src/main/kotlin/moe/rukamori/archivetune/ui/component/liquidglass/LiquidGlassGestures.kt` |
+| Thin wrapper used by `MainActivity` | `app/src/main/kotlin/moe/rukamori/archivetune/ui/component/FloatingNavigationToolbar.kt` |
+| Glass primitives (backdrop, colors, refraction) | `app/src/main/kotlin/moe/rukamori/archivetune/ui/theme/LiquidGlass.kt` |
+
+Behaviour: one glass capsule holds every tab, the selection is a glass lens that slides,
+squashes/stretches with drag velocity, and turns into a real refractive lens (with chromatic
+aberration) while pressed. You can drag anywhere on the bar to move between tabs (haptic per tab).
+Blur needs Android 12 (API 31+), refraction/chromatic aberration need Android 13 (API 33+);
+below that it degrades to a frosted, tinted capsule automatically.
+
+### Build + download the APK
+Workflow **"Build Liquid Glass APK"** (`.github/workflows/build-liquid-glass.yml`):
+
+```bash
+gh workflow run build-liquid-glass.yml -f task=assembleGmsMobileArm64Release
+```
+
+It uploads the APK as a run artifact **and** attaches it to the GitHub Release tagged
+`liquid-glass`, so it can be downloaded directly:
+
+`https://github.com/USER/salakfy/releases/download/liquid-glass/app-gms-mobile-arm64-release.apk`
+
+Use `-f task=assembleGmsMobileUniversalRelease` for an APK that runs on every CPU/ABI.
