@@ -45,6 +45,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
@@ -213,22 +214,36 @@ private fun LiquidSliderImpl(
                     scaleX = base + stretch.value
                     scaleY = (base - abs(stretch.value) * 0.4f).coerceIn(0.8f, 1.6f)
                 }.drawBehind {
+                    val pressed = press.value
                     val radius = CornerRadius(size.height / 2f)
+                    val solidTrack = if (isLightTheme) Color(0xFFC7C7CC) else Color(0xFF5A5A60)
+
                     // drop shadow
                     drawRoundRect(
-                        color = Color.Black.copy(alpha = 0.18f),
+                        color = Color.Black.copy(alpha = 0.18f + 0.08f * pressed),
                         topLeft = Offset(0f, 1.5.dp.toPx()),
-                        size = Size(size.width, size.height),
+                        size = size,
                         cornerRadius = radius,
                     )
-                    // white glass body
-                    drawRoundRect(color = Color.White, cornerRadius = radius)
-                    // the accent track showing "through" the knob (it ends at the knob centre)
-                    if (progress.value > 0.001f) {
-                        clipRect(right = size.width / 2f) {
-                            drawRoundRect(color = accentColor, size = size, cornerRadius = radius)
+
+                    // what the glass is looking at: the track, magnified while held
+                    if (pressed > 0.01f) {
+                        scale(1f + 0.4f * pressed, 1f + 0.4f * pressed, pivot = center) {
+                            drawRect(color = solidTrack, size = size)
+                            if (progress.value > 0.001f) {
+                                clipRect(right = size.width / 2f) {
+                                    drawRect(color = accentColor, size = size)
+                                }
+                            }
                         }
                     }
+
+                    // glass body: opaque white at rest (demo behaviour), translucent while held
+                    drawRoundRect(
+                        color = Color.White.copy(alpha = 1f - 0.55f * pressed),
+                        cornerRadius = radius,
+                    )
+
                     // top specular sheen
                     drawRoundRect(
                         brush =
@@ -239,24 +254,25 @@ private fun LiquidSliderImpl(
                             ),
                         cornerRadius = radius,
                     )
-                    // chromatic rim while held (the demo's dispersion edge)
-                    val pressed = press.value
+
+                    // chromatic dispersion rim while held
                     if (pressed > 0.01f) {
                         drawRoundRect(
-                            color = Color(0xFF4FA8FF).copy(alpha = 0.35f * pressed),
-                            topLeft = Offset(0.75.dp.toPx(), 0f),
-                            size = Size(size.width - 1.5.dp.toPx(), size.height),
+                            color = Color(0xFF4FA8FF).copy(alpha = 0.5f * pressed),
+                            topLeft = Offset(-0.5.dp.toPx(), 0f),
+                            size = Size(size.width + 1.dp.toPx(), size.height),
                             cornerRadius = radius,
                             style = Stroke(width = 1.dp.toPx()),
                         )
                         drawRoundRect(
-                            color = Color(0xFFFF7AA8).copy(alpha = 0.3f * pressed),
-                            topLeft = Offset(0f, 0.75.dp.toPx()),
-                            size = Size(size.width - 1.5.dp.toPx(), size.height),
+                            color = Color(0xFFFF6FA8).copy(alpha = 0.45f * pressed),
+                            topLeft = Offset(0.5.dp.toPx(), 0f),
+                            size = Size(size.width + 1.dp.toPx(), size.height),
                             cornerRadius = radius,
                             style = Stroke(width = 1.dp.toPx()),
                         )
                     }
+
                     // hairline border
                     drawRoundRect(
                         color = Color.Black.copy(alpha = 0.07f),

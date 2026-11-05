@@ -63,6 +63,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
@@ -82,7 +83,6 @@ import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
 import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
@@ -127,9 +127,9 @@ fun LiquidGlassTabBar(
     val accentColor = if (isLightTheme) Color(0xFF0088FF) else Color(0xFF0091FF)
     val containerColor =
         when {
-            pureBlack -> Color.Black.copy(alpha = 0.6f)
-            isLightTheme -> Color(0xFFFAFAFA).copy(alpha = 0.52f)
-            else -> Color(0xFF121212).copy(alpha = 0.58f)
+            pureBlack -> Color(0xFF0A0A0A).copy(alpha = 0.82f)
+            isLightTheme -> Color(0xFFF7F7F8).copy(alpha = 0.74f)
+            else -> Color(0xFF161618).copy(alpha = 0.78f)
         }
     val contentColor = if (isLightTheme) Color.Black else Color.White
 
@@ -294,7 +294,7 @@ fun LiquidGlassTabBar(
                     shape = { TabCapsuleShape },
                     effects = {
                         vibrancy()
-                        blur(8f.dp.toPx())
+                        blur(14f.dp.toPx())
                         lens(24f.dp.toPx(), 24f.dp.toPx())
                     },
                     layerBlock = {
@@ -303,7 +303,21 @@ fun LiquidGlassTabBar(
                         scaleX = scale
                         scaleY = scale
                     },
-                    onDrawSurface = { drawRect(containerColor) },
+                    onDrawSurface = {
+                        drawRect(containerColor)
+                        // glassy sheen: light catching the top of the capsule
+                        drawRect(
+                            Brush.verticalGradient(
+                                colors =
+                                    listOf(
+                                        Color.White.copy(alpha = if (isLightTheme) 0.34f else 0.12f),
+                                        Color.Transparent,
+                                    ),
+                                startY = 0f,
+                                endY = size.height * 0.55f,
+                            ),
+                        )
+                    },
                 ).then(interactiveHighlight.modifier)
                 .height(TabBarTrackHeight)
                 .fillMaxWidth()
@@ -335,6 +349,8 @@ fun LiquidGlassTabBar(
         }
 
         // ---------- 3. the glass thumb ----------
+        // Two stacked layers, same visual language as the capsule:
+        //  a) frosted pill        b) the tinted icon layer + the press lens
         Box(
             Modifier
                 .padding(horizontal = TabBarInset)
@@ -345,52 +361,71 @@ fun LiquidGlassTabBar(
                         } else {
                             -(dampedDragAnimation.value * tabWidth) + panelOffset
                         }
+                    scaleX = dampedDragAnimation.scaleX
+                    scaleY = dampedDragAnimation.scaleY
+                    val velocity = dampedDragAnimation.velocity / 10f
+                    scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
+                    scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                 }.then(interactiveHighlight.gestureModifier)
                 .then(dampedDragAnimation.modifier)
-                .drawBackdrop(
-                    backdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop),
-                    shape = { TabCapsuleShape },
-                    effects = {
-                        val progress = dampedDragAnimation.pressProgress
-                        lens(
-                            10f.dp.toPx() * progress,
-                            14f.dp.toPx() * progress,
-                            chromaticAberration = true,
-                        )
-                    },
-                    highlight = {
-                        val progress = dampedDragAnimation.pressProgress
-                        Highlight.Default.copy(alpha = progress)
-                    },
-                    shadow = {
-                        val progress = dampedDragAnimation.pressProgress
-                        Shadow(alpha = progress)
-                    },
-                    innerShadow = {
-                        val progress = dampedDragAnimation.pressProgress
-                        InnerShadow(
-                            radius = 8f.dp * progress,
-                            alpha = progress,
-                        )
-                    },
-                    layerBlock = {
-                        scaleX = dampedDragAnimation.scaleX
-                        scaleY = dampedDragAnimation.scaleY
-                        val velocity = dampedDragAnimation.velocity / 10f
-                        scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                        scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
-                    },
-                    onDrawSurface = {
-                        val progress = dampedDragAnimation.pressProgress
-                        drawRect(
-                            if (isLightTheme) Color.Black.copy(0.1f) else Color.White.copy(0.1f),
-                            alpha = 1f - progress,
-                        )
-                        drawRect(Color.Black.copy(alpha = 0.03f * progress))
-                    },
-                ).height(TabBarThumbHeight)
+                .height(TabBarThumbHeight)
                 .fillMaxWidth(1f / tabsCount),
-        )
+        ) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { TabCapsuleShape },
+                        effects = {
+                            vibrancy()
+                            blur(14f.dp.toPx())
+                        },
+                        highlight = { Highlight.Default },
+                        onDrawSurface = {
+                            drawRect(
+                                if (isLightTheme) {
+                                    Color.White.copy(alpha = 0.46f)
+                                } else {
+                                    Color.White.copy(alpha = 0.12f)
+                                },
+                            )
+                        },
+                    ),
+            )
+
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .drawBackdrop(
+                        backdrop = tabsBackdrop,
+                        shape = { TabCapsuleShape },
+                        effects = {
+                            val progress = dampedDragAnimation.pressProgress
+                            lens(
+                                10f.dp.toPx() * progress,
+                                14f.dp.toPx() * progress,
+                                chromaticAberration = true,
+                            )
+                        },
+                        highlight = {
+                            val progress = dampedDragAnimation.pressProgress
+                            Highlight.Default.copy(alpha = progress)
+                        },
+                        shadow = {
+                            val progress = dampedDragAnimation.pressProgress
+                            Shadow(alpha = progress)
+                        },
+                        innerShadow = {
+                            val progress = dampedDragAnimation.pressProgress
+                            InnerShadow(
+                                radius = 8f.dp * progress,
+                                alpha = progress,
+                            )
+                        },
+                    ),
+            )
+        }
     }
 }
 

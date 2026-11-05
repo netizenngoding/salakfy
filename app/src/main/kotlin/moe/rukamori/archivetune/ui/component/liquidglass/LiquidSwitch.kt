@@ -41,6 +41,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
@@ -174,22 +175,30 @@ fun LiquidSwitch(
                     scaleY = (base - abs(stretch.value) * 0.4f).coerceIn(0.8f, 1.6f)
                 }
                 .drawBehind {
+                    val pressed = press.value
                     val radius = CornerRadius(size.height / 2f)
+                    val solidTrack = if (isLightTheme) Color(0xFFC7C7CC) else Color(0xFF5A5A60)
+                    val trackUnder = lerp(solidTrack, accentColor, position.value)
+
                     drawRoundRect(
-                        color = Color.Black.copy(alpha = 0.18f),
+                        color = Color.Black.copy(alpha = 0.18f + 0.08f * pressed),
                         topLeft = Offset(0f, 1.5.dp.toPx()),
                         size = size,
                         cornerRadius = radius,
                     )
-                    drawRoundRect(color = Color.White, cornerRadius = radius)
-                    // the track colour showing "through" the glass
-                    if (position.value > 0.001f) {
-                        drawRoundRect(
-                            color = accentColor.copy(alpha = 0.16f + 0.24f * position.value),
-                            size = size,
-                            cornerRadius = radius,
-                        )
+
+                    // the track seen through the glass, magnified while held
+                    if (pressed > 0.01f) {
+                        scale(1f + 0.45f * pressed, 1f + 0.45f * pressed, pivot = center) {
+                            drawRect(color = trackUnder, size = size)
+                        }
                     }
+
+                    drawRoundRect(
+                        color = Color.White.copy(alpha = 1f - 0.55f * pressed),
+                        cornerRadius = radius,
+                    )
+
                     drawRoundRect(
                         brush =
                             Brush.verticalGradient(
@@ -199,23 +208,24 @@ fun LiquidSwitch(
                             ),
                         cornerRadius = radius,
                     )
-                    val pressed = press.value
+
                     if (pressed > 0.01f) {
                         drawRoundRect(
-                            color = Color(0xFF4FA8FF).copy(alpha = 0.32f * pressed),
-                            topLeft = Offset(0.75.dp.toPx(), 0f),
-                            size = Size(size.width - 1.5.dp.toPx(), size.height),
+                            color = Color(0xFF4FA8FF).copy(alpha = 0.5f * pressed),
+                            topLeft = Offset(-0.5.dp.toPx(), 0f),
+                            size = Size(size.width + 1.dp.toPx(), size.height),
                             cornerRadius = radius,
                             style = Stroke(width = 1.dp.toPx()),
                         )
                         drawRoundRect(
-                            color = Color(0xFFFF7AA8).copy(alpha = 0.28f * pressed),
-                            topLeft = Offset(0f, 0.75.dp.toPx()),
-                            size = Size(size.width - 1.5.dp.toPx(), size.height),
+                            color = Color(0xFFFF6FA8).copy(alpha = 0.45f * pressed),
+                            topLeft = Offset(0.5.dp.toPx(), 0f),
+                            size = Size(size.width + 1.dp.toPx(), size.height),
                             cornerRadius = radius,
                             style = Stroke(width = 1.dp.toPx()),
                         )
                     }
+
                     drawRoundRect(
                         color = Color.Black.copy(alpha = 0.07f),
                         cornerRadius = radius,
